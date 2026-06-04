@@ -1,5 +1,6 @@
 package it.anomalyforlife.itemelevators.listeners;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.bukkit.Material;
@@ -88,44 +89,40 @@ public class ChestListener implements Listener {
         Optional<Elevator> bottomElevator = manager.getBottomElevatorAt(block.getLocation());
 
         if (bottomElevator.isEmpty()) {
-            Optional<Elevator> detected = manager.detectElevator(block.getLocation());
+            List<Elevator> chainToCreate = manager.detectChain(block.getLocation());
 
-            if (detected.isPresent()) {
-                Elevator elevator = detected.get();
-
+            if (!chainToCreate.isEmpty()) {
                 if (!player.hasPermission("itemelevators.create")) {
                     plugin.getLangManager().send(player, "elevator.no-permission");
                     return;
                 }
 
-                // Economy check
+                double creationCost = plugin.getConfigManager().getCreationCost() * chainToCreate.size();
                 if (plugin.getConfigManager().isEconomyEnabled()
                         && plugin.hasEconomy()
-                        && !player.hasPermission("itemelevators.bypass-cost")) {
-                    double cost = plugin.getConfigManager().getCreationCost();
-                    if (cost > 0) {
-                        if (!plugin.getEconomy().has(player, cost)) {
-                            plugin.getLangManager().send(player, "economy.not-enough",
-                                    "{cost}", plugin.getEconomy().format(cost));
-                            return;
-                        }
-                        plugin.getEconomy().withdrawPlayer(player, cost);
-                        plugin.getLangManager().send(player, "economy.charged",
-                                "{cost}", plugin.getEconomy().format(cost));
+                        && !player.hasPermission("itemelevators.bypass-cost")
+                        && creationCost > 0) {
+                    if (!plugin.getEconomy().has(player, creationCost)) {
+                        plugin.getLangManager().send(player, "economy.not-enough",
+                                "{cost}", plugin.getEconomy().format(creationCost));
+                        return;
                     }
+                    plugin.getEconomy().withdrawPlayer(player, creationCost);
+                    plugin.getLangManager().send(player, "economy.charged",
+                            "{cost}", plugin.getEconomy().format(creationCost));
                 }
 
-                // Carry the level from the right-clicked (bottom) chest
-                int level = elevatorItem.getBlockLevel(block);
-                manager.registerElevator(elevator);
-                plugin.getUpgradeService().registerElevator(elevator, level);
+                for (Elevator elevator : chainToCreate) {
+                    int level = elevatorItem.getBlockLevel(elevator.getBottomChest().getBlock());
+                    manager.registerElevator(elevator);
+                    plugin.getUpgradeService().registerElevator(elevator, level);
+                }
                 manager.saveData();
 
+                Elevator created = manager.getElevatorAt(block.getLocation()).orElse(chainToCreate.get(0));
                 plugin.getLangManager().send(player, "elevator.created",
                         "{interval}", String.valueOf(plugin.getConfigManager().getTransferInterval()),
-                        "{items}",    String.valueOf(plugin.getUpgradeService().getItemsPerTransfer(elevator)));
-
-                bottomElevator = Optional.of(elevator);
+                        "{items}",    String.valueOf(plugin.getUpgradeService().getItemsPerTransfer(created)));
             }
         }
 

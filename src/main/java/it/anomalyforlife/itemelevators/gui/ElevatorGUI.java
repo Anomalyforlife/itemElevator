@@ -106,11 +106,13 @@ public class ElevatorGUI {
 
         if (!isMax) {
             UpgradeConfig.LevelData next = cfg.getLevelData(level + 1);
+            List<Elevator> chain = plugin.getElevatorManager().getChain(elevator);
+            double totalCost = plugin.getUpgradeService().getChainUpgradeCost(chain);
             lore.add(Component.empty());
             lore.add(line(NamedTextColor.GRAY, "After upgrade: ",
                     NamedTextColor.GREEN, next.itemsPerTransfer() + " items/transfer"));
             lore.add(line(NamedTextColor.GRAY, "Cost: ",
-                    NamedTextColor.AQUA, formatCost(next.cost())));
+                NamedTextColor.AQUA, formatCost(totalCost)));
             lore.add(Component.empty());
             lore.add(Component.text("► Click to upgrade", NamedTextColor.GREEN)
                     .decoration(TextDecoration.ITALIC, false));
@@ -138,10 +140,11 @@ public class ElevatorGUI {
                         .decoration(TextDecoration.ITALIC, false));
     }
 
-    private String formatCost(int cost) {
+    private String formatCost(double cost) {
         if (cost <= 0) return "Free";
         if (plugin.hasEconomy()) return plugin.getEconomy().format(cost);
-        return String.valueOf(cost);
+        long rounded = Math.round(cost);
+        return String.valueOf(rounded);
     }
 
     public void open(Player player) {

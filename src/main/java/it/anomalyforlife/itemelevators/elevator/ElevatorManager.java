@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -64,6 +66,46 @@ public class ElevatorManager {
         }
         data = YamlConfiguration.loadConfiguration(dataFile);
 
+        ConfigurationSection chainsSection = data.getConfigurationSection("chains");
+        if (chainsSection != null) {
+            int loaded = 0;
+            for (String k : chainsSection.getKeys(false)) {
+                try {
+                    String worldName = chainsSection.getString(k + ".world");
+                    if (worldName == null) continue;
+                    World world = plugin.getServer().getWorld(worldName);
+                    if (world == null) {
+                        plugin.getLogger().warning("World '" + worldName + "' not loaded; chain " + k + " skipped.");
+                        continue;
+                    }
+
+                    List<Map<?, ?>> rawChests = chainsSection.getMapList(k + ".chests");
+                    if (rawChests.size() < 2) continue;
+
+                    List<Location> chestNodes = new ArrayList<>();
+                    for (Map<?, ?> rawChest : rawChests) {
+                        Integer x = asInt(rawChest.get("x"));
+                        Integer y = asInt(rawChest.get("y"));
+                        Integer z = asInt(rawChest.get("z"));
+                        if (x == null || y == null || z == null) {
+                            chestNodes.clear();
+                            break;
+                        }
+                        chestNodes.add(new Location(world, x, y, z));
+                    }
+
+                    if (chestNodes.size() < 2) continue;
+                    int level = chainsSection.getInt(k + ".level", 1);
+                    registerChain(chestNodes, level);
+                    loaded++;
+                } catch (Exception e) {
+                    plugin.getLogger().warning("Failed to load chain '" + k + "': " + e.getMessage());
+                }
+            }
+            plugin.getLogger().info("Loaded " + loaded + " chain(s) from storage.");
+            return;
+        }
+
         ConfigurationSection section = data.getConfigurationSection("elevators");
         if (section == null) return;
 
@@ -101,23 +143,38 @@ public class ElevatorManager {
         plugin.getLogger().info("Loaded " + loaded + " elevator(s) from storage.");
     }
 
+    private void registerChain(List<Location> chestNodes, int level) {
+        for (int i = 0; i < chestNodes.size() - 1; i++) {
+            Elevator elevator = new Elevator(chestNodes.get(i), chestNodes.get(i + 1));
+            registerElevator(elevator);
+            plugin.getUpgradeService().registerElevator(elevator, level);
+        }
+    }
+
     public void saveData() {
         if (data == null) return;
+        data.set("chains", null);
         data.set("elevators", null);
 
         int idx = 0;
+        Set<Elevator> visited = new HashSet<>();
         for (Elevator elevator : elevators) {
-            Location bottom = elevator.getBottomChest();
-            Location top    = elevator.getTopChest();
-            String path = "elevators." + idx++;
-            data.set(path + ".world",    elevator.getWorldName());
-            data.set(path + ".bottom.x", bottom.getBlockX());
-            data.set(path + ".bottom.y", bottom.getBlockY());
-            data.set(path + ".bottom.z", bottom.getBlockZ());
-            data.set(path + ".top.x",    top.getBlockX());
-            data.set(path + ".top.y",    top.getBlockY());
-            data.set(path + ".top.z",    top.getBlockZ());
-            data.set(path + ".level",    plugin.getUpgradeService().getLevel(elevator));
+            if (!visited.add(elevator)) continue;
+
+            List<Elevator> chain = getChain(elevator);
+            visited.addAll(chain);
+            if (chain.isEmpty()) continue;
+
+            String path = "chains." + idx++;
+            List<Location> chestNodes = new ArrayList<>();
+            chestNodes.add(chain.getFirst().getBottomChest());
+            for (Elevator link : chain) {
+                chestNodes.add(link.getTopChest());
+            }
+
+            data.set(path + ".world", chain.getFirst().getWorldName());
+            data.set(path + ".chests", serializeChainNodes(chestNodes));
+            data.set(path + ".level", getChainLevel(chain));
         }
 
         try {
@@ -125,6 +182,31 @@ public class ElevatorManager {
         } catch (IOException e) {
             plugin.getLogger().severe("Cannot save elevators.yml: " + e.getMessage());
         }
+    }
+
+    private List<Map<String, Object>> serializeChainNodes(List<Location> chestNodes) {
+        List<Map<String, Object>> serialized = new ArrayList<>();
+        for (Location chest : chestNodes) {
+            Map<String, Object> node = new LinkedHashMap<>();
+            node.put("x", chest.getBlockX());
+            node.put("y", chest.getBlockY());
+            node.put("z", chest.getBlockZ());
+            serialized.add(node);
+        }
+        return serialized;
+    }
+
+    private int getChainLevel(List<Elevator> chain) {
+        int level = Integer.MAX_VALUE;
+        for (Elevator elevator : chain) {
+            level = Math.min(level, plugin.getUpgradeService().getLevel(elevator));
+        }
+        return level == Integer.MAX_VALUE ? 1 : level;
+    }
+
+    private Integer asInt(Object value) {
+        if (value instanceof Number number) return number.intValue();
+        return null;
     }
 
     // -------------------------------------------------------------------------
@@ -146,15 +228,65 @@ public class ElevatorManager {
      * </ul>
      */
     public Optional<Elevator> detectElevator(Location chestLocation) {
+        return detectElevator(chestLocation, 0);
+    }
+
+    /**
+     * Detects the nearest elevator pair in a specific direction.
+     * direction > 0 searches upward only, direction < 0 searches downward only,
+     * direction == 0 keeps the original up-then-down behavior.
+     */
+    public Optional<Elevator> detectElevator(Location chestLocation, int direction) {
         Block block = chestLocation.getBlock();
         ElevatorItem elevatorItem = plugin.getElevatorItem();
         if (!elevatorItem.isElevatorBlock(block)) return Optional.empty();
 
         int maxDist = plugin.getConfigManager().getMaxDistance();
 
+        if (direction > 0) {
+            return searchColumn(block, elevatorItem, maxDist, 1);
+        }
+        if (direction < 0) {
+            return searchColumn(block, elevatorItem, maxDist, -1);
+        }
+
         Optional<Elevator> up = searchColumn(block, elevatorItem, maxDist, 1);
         if (up.isPresent()) return up;
         return searchColumn(block, elevatorItem, maxDist, -1);
+    }
+
+    /**
+     * Detects the full vertical chain that passes through the given chest.
+     * The returned list is ordered from bottom to top.
+     */
+    public List<Elevator> detectChain(Location chestLocation) {
+        Block block = chestLocation.getBlock();
+        ElevatorItem elevatorItem = plugin.getElevatorItem();
+        if (!elevatorItem.isElevatorBlock(block)) return List.of();
+
+        LinkedList<Elevator> chain = new LinkedList<>();
+
+        Location cursor = chestLocation;
+        while (true) {
+            Optional<Elevator> detected = detectElevator(cursor, -1);
+            if (detected.isEmpty()) break;
+
+            Elevator below = detected.get();
+            chain.addFirst(below);
+            cursor = below.getBottomChest();
+        }
+
+        cursor = chestLocation;
+        while (true) {
+            Optional<Elevator> detected = detectElevator(cursor, 1);
+            if (detected.isEmpty()) break;
+
+            Elevator above = detected.get();
+            chain.addLast(above);
+            cursor = above.getTopChest();
+        }
+
+        return new ArrayList<>(chain);
     }
 
     private Optional<Elevator> searchColumn(Block origin, ElevatorItem elevatorItem, int maxDist, int direction) {
