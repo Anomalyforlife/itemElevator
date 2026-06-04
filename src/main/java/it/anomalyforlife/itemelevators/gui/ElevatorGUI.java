@@ -80,7 +80,8 @@ public class ElevatorGUI {
     private ItemStack buildUpgradeButton() {
         UpgradeService svc = plugin.getUpgradeService();
         UpgradeConfig cfg = svc.getConfig();
-        int level = svc.getLevel(elevator);
+        // Show the chest's effective level (max level among elevators containing this chest)
+        int level = plugin.getElevatorManager().getMaxLevelAt(chestLocation);
         int maxLevel = cfg.getMaxLevel();
         boolean isMax = level >= maxLevel;
 

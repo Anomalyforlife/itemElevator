@@ -92,13 +92,18 @@ public class InventoryListener implements Listener {
 
         switch (result) {
             case SUCCESS -> {
+                int chestLevel = plugin.getElevatorManager().getMaxLevelAt(gui.getChestLocation());
+                for (Elevator elevator : chain) {
+                    plugin.getElevatorItem().markBlock(elevator.getBottomChest().getBlock(), chestLevel);
+                    plugin.getElevatorItem().markBlock(elevator.getTopChest().getBlock(), chestLevel);
+                }
                 plugin.getElevatorManager().saveData();
                 gui.refreshUpgradeButton();
-                Elevator elevator = gui.getElevator();
+                int items = plugin.getUpgradeService().getConfig().getLevelData(chestLevel).itemsPerTransfer();
                 plugin.getLangManager().send(player, "upgrade.success",
-                        "{level}", String.valueOf(plugin.getUpgradeService().getLevel(elevator)),
-                        "{items}", String.valueOf(plugin.getUpgradeService().getItemsPerTransfer(elevator)),
-                        "{chain}", String.valueOf(chain.size()));
+                    "{level}", String.valueOf(chestLevel),
+                    "{items}", String.valueOf(items),
+                    "{chain}", String.valueOf(chain.size()));
             }
             case MAX_LEVEL ->
                     plugin.getLangManager().send(player, "upgrade.max-level");
