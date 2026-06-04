@@ -1,0 +1,50 @@
+# =============================================
+#   ItemElevators - English Language File
+#   MiniMessage format: https://docs.advntr.dev/minimessage/format
+# =============================================
+
+prefix: "<dark_gray>[<gold><bold>ItemElevator</bold></gold><dark_gray>] </dark_gray>"
+
+plugin:
+  enabled: "ItemElevators enabled!"
+  disabled: "ItemElevators disabled!"
+
+elevator:
+  created: "<prefix><green>Elevator activated! Transferring <white>{interval}</white> ticks, <white>{items}</white> item(s)/cycle."
+  removed: "<prefix><yellow>Elevator deactivated (a chest was removed)."
+  invalid: "<prefix><red>This elevator is no longer valid."
+  already-exists: "<prefix><yellow>This chest is already part of an active elevator."
+  not-found: "<prefix><red>No elevator found at this location."
+  no-permission: "<prefix><red>You don't have permission to create elevators."
+
+gui:
+  title: "<gold><bold>✦ Item Elevator ✦</bold></gold>"
+  top-label: "<green><bold>▲ TOP CHEST</bold></green>"
+  bottom-label: "<red><bold>▼ BOTTOM CHEST</bold></red>"
+
+upgrade:
+  success: "<prefix><green>Upgraded to <white>Lv {level}</white>! Now moving <white>{items}</white> item(s)/cycle."
+  max-level: "<prefix><gold>This elevator is already at max level!"
+  not-enough-money: "<prefix><red>You need <white>{cost}</white> to upgrade."
+  vault-unavailable: "<prefix><red>No economy plugin is available."
+  not-enabled: "<prefix><red>Upgrades are disabled on this server."
+  error: "<prefix><red>An internal error occurred during upgrade."
+
+economy:
+  not-enough: "<prefix><red>You need <white>{cost}</white> to activate this elevator."
+  charged: "<prefix><yellow>Charged <white>{cost}</white> to activate the elevator."
+  bypass: "<prefix><gray>(Economy cost bypassed)"
+
+command:
+  no-permission: "<prefix><red>You don't have permission to use this command."
+  reload: "<prefix><green>Configuration reloaded successfully!"
+  list-header: "<gold><bold>--- Active Elevators ({count}) ---</bold></gold>"
+  list-entry: "<gray> • <white>{world}</white> Bottom: <aqua>({bx}, {by}, {bz})</aqua> → Top: <aqua>({tx}, {ty}, {tz})</aqua> <yellow>[Lv {level}]</yellow>"
+  list-empty: "<prefix><yellow>No active elevators registered."
+  remove-success: "<prefix><green>Elevator removed successfully."
+  remove-fail: "<prefix><red>Look at an elevator chest to remove it."
+  usage: |
+    <gold><bold>--- ItemElevators Commands ---</bold></gold>
+    <yellow>/ie reload <white>- Reload configuration
+    <yellow>/ie list <white>- List all active elevators
+    <yellow>/ie remove <white>- Remove the elevator you are looking at

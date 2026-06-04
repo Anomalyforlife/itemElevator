@@ -1,0 +1,38 @@
+name: ItemElevators
+version: '${version}'
+main: it.anomalyforlife.itemelevators.ItemElevators
+api-version: '1.21'
+authors:
+  - Anomalyforlife
+description: Automatic item elevator between two chests connected by conductor blocks.
+softdepend:
+  - Vault
+
+commands:
+  itemelevator:
+    description: Main ItemElevators command
+    usage: /<command> [reload|list|remove]
+    permission: itemelevators.command
+    aliases:
+      - ie
+      - elevator
+
+permissions:
+  itemelevators.command:
+    description: Access to base ItemElevators commands
+    default: op
+  itemelevators.reload:
+    description: Reload the plugin configuration
+    default: op
+  itemelevators.list:
+    description: List all active elevators
+    default: op
+  itemelevators.remove:
+    description: Remove the elevator the player is looking at
+    default: op
+  itemelevators.create:
+    description: Create elevators by interacting with valid chests
+    default: true
+  itemelevators.bypass-cost:
+    description: Bypass the economy creation cost
+    default: op

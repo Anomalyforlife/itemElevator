@@ -1,0 +1,50 @@
+# =============================================
+#   ItemElevators - File Lingua Italiana
+#   Formato MiniMessage: https://docs.advntr.dev/minimessage/format
+# =============================================
+
+prefix: "<dark_gray>[<gold><bold>ItemElevator</bold></gold><dark_gray>] </dark_gray>"
+
+plugin:
+  enabled: "ItemElevators abilitato!"
+  disabled: "ItemElevators disabilitato!"
+
+elevator:
+  created: "<prefix><green>Elevator attivato! Trasferimento ogni <white>{interval}</white> tick, <white>{items}</white> oggetto/i per ciclo."
+  removed: "<prefix><yellow>Elevator disattivato (una chest è stata rimossa)."
+  invalid: "<prefix><red>Questo elevator non è più valido."
+  already-exists: "<prefix><yellow>Questa chest fa già parte di un elevator attivo."
+  not-found: "<prefix><red>Nessun elevator trovato in questa posizione."
+  no-permission: "<prefix><red>Non hai il permesso per creare elevator."
+
+gui:
+  title: "<gold><bold>✦ Item Elevator ✦</bold></gold>"
+  top-label: "<green><bold>▲ CHEST SUPERIORE</bold></green>"
+  bottom-label: "<red><bold>▼ CHEST INFERIORE</bold></red>"
+
+upgrade:
+  success: "<prefix><green>Potenziato al <white>Lv {level}</white>! Ora sposta <white>{items}</white> oggetto/i per ciclo."
+  max-level: "<prefix><gold>Questo elevator è già al livello massimo!"
+  not-enough-money: "<prefix><red>Ti servono <white>{cost}</white> per potenziare."
+  vault-unavailable: "<prefix><red>Nessun plugin economia disponibile."
+  not-enabled: "<prefix><red>I potenziamenti sono disabilitati su questo server."
+  error: "<prefix><red>Si è verificato un errore interno durante il potenziamento."
+
+economy:
+  not-enough: "<prefix><red>Ti servono <white>{cost}</white> per attivare questo elevator."
+  charged: "<prefix><yellow>Ti sono stati addebitati <white>{cost}</white> per attivare l'elevator."
+  bypass: "<prefix><gray>(Costo economia aggirato)"
+
+command:
+  no-permission: "<prefix><red>Non hai il permesso per usare questo comando."
+  reload: "<prefix><green>Configurazione ricaricata con successo!"
+  list-header: "<gold><bold>--- Elevator Attivi ({count}) ---</bold></gold>"
+  list-entry: "<gray> • <white>{world}</white> Basso: <aqua>({bx}, {by}, {bz})</aqua> → Alto: <aqua>({tx}, {ty}, {tz})</aqua> <yellow>[Lv {level}]</yellow>"
+  list-empty: "<prefix><yellow>Nessun elevator attivo registrato."
+  remove-success: "<prefix><green>Elevator rimosso con successo."
+  remove-fail: "<prefix><red>Guarda una chest di un elevator per rimuoverlo."
+  usage: |
+    <gold><bold>--- Comandi ItemElevators ---</bold></gold>
+    <yellow>/ie reload <white>- Ricarica la configurazione
+    <yellow>/ie list <white>- Lista di tutti gli elevator attivi
+    <yellow>/ie remove <white>- Rimuovi l'elevator che stai guardando

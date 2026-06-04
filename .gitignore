@@ -1,0 +1,60 @@
+############################################
+# Java / Gradle / IDE
+############################################
+
+# Compiled output
+*.class
+*.log
+
+# Crash logs
+hs_err_pid*
+replay_pid*
+
+# Gradle caches (do NOT ignore *.gradle files)
+.gradle/
+
+# Build output
+build/
+out/
+bin/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# VS Code
+.vscode/
+
+############################################
+# Local server runtime (Paper/Spigot)
+############################################
+
+run/
+
+############################################
+# OS junk
+############################################
+
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+############################################
+# Archives / artifacts (usually generated)
+############################################
+
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+*.war
+*.ear
+*.nar
+*.zip
+*.tar.gz
+*.rar

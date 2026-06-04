@@ -1,0 +1,69 @@
+# =============================================
+#   ItemElevators - Configuration
+#   Author: Anomalyforlife
+# =============================================
+
+# How often (in ticks) the elevator transfers items. 20 ticks = 1 second. Min: 1
+transfer-interval: 10
+
+# Block type that must exist between the two chests. Default: DIAMOND_BLOCK
+conductor-block: DIAMOND_BLOCK
+
+# Maximum conductor blocks allowed between the two chests. Range: 1-20
+max-distance: 10
+
+# Language file to use (lang/<language>.yml). Available: en, it
+language: en
+
+# Economy settings (requires Vault + a compatible economy plugin)
+economy:
+  enabled: false
+  # Cost to activate a new elevator (0 = free)
+  creation-cost: 100.0
+
+# =============================================
+#   Upgrade System
+# =============================================
+upgrades:
+  # Set to false to disable upgrades entirely (all elevators run at level 1)
+  enabled: true
+
+  # If true, Vault economy is required to purchase upgrades
+  vault-required: true
+
+  # Number of upgrade levels (max 10)
+  max-level: 10
+
+  # Per-level settings. 'cost' is the Vault price to reach that level.
+  # 'items-per-transfer' is how many item units are moved each tick cycle.
+  levels:
+    1:
+      cost: 0
+      items-per-transfer: 1
+    2:
+      cost: 500
+      items-per-transfer: 2
+    3:
+      cost: 1500
+      items-per-transfer: 4
+    4:
+      cost: 3000
+      items-per-transfer: 6
+    5:
+      cost: 5000
+      items-per-transfer: 8
+    6:
+      cost: 7500
+      items-per-transfer: 16
+    7:
+      cost: 10000
+      items-per-transfer: 24
+    8:
+      cost: 15000
+      items-per-transfer: 32
+    9:
+      cost: 20000
+      items-per-transfer: 48
+    10:
+      cost: 30000
+      items-per-transfer: 64

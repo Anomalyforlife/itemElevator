@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/themr/Desktop/Projects/hopperfilter/**)",
+      "Bash(xargs grep -l \"upgrade\\\\|slot\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"c:\\\\Users\\\\themr\\\\Desktop\\\\Projects\\\\item-elevators\\\\src\\\\main\\\\java\\\\it\\\\anomalyforlife\\\\itemelevators\\\\upgrade\")"
+    ]
+  }
+}
