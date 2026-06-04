@@ -2,12 +2,18 @@ name: Build
 
 on:
   push:
+    # Release manuale quando pushi un tag vX.Y.Z
+    tags:
+      - 'v*'
+    # Build/release automatica solo quando cambia gradle.properties (poi verifichiamo pluginVersion via diff)
     branches:
       - '**'
-  pull_request:
+    paths:
+      - 'gradle.properties'
 
 permissions:
-  contents: read
+  contents: write
+  actions: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -28,16 +36,152 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Set up Gradle
+      - name: Set up Gradle 8.8
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.14'
+          gradle-version: '8.8'
 
+      # Verifica che *pluginVersion* sia cambiata (non solo che gradle.properties sia cambiato)
+      - name: Detect pluginVersion change
+        id: pv_changed
+        if: github.event_name == 'push' && !startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BEFORE="${{ github.event.before }}"
+          AFTER="${{ github.sha }}"
+
+          # Se BEFORE è vuoto/zero (caso raro), consideriamo "changed" per sicurezza
+          if [[ -z "$BEFORE" || "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            # Controlla se la riga pluginVersion è stata toccata tra BEFORE e AFTER
+            if git diff "$BEFORE" "$AFTER" -- gradle.properties | grep -E '^[+-]\s*pluginVersion=' >/dev/null; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Read pluginVersion
+        id: plugin_version
+        if: |
+          (startsWith(github.ref, 'refs/tags/v')) ||
+          (steps.pv_changed.outputs.changed == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
+        shell: bash
+        run: |
+          set -euo pipefail
+          v=$(grep -E '^pluginVersion=' gradle.properties | head -n 1 | cut -d= -f2- | tr -d '\r' | xargs)
+          if [ -z "$v" ]; then
+            echo "pluginVersion is empty" >&2
+            exit 1
+          fi
+          echo "value=$v" >> "$GITHUB_OUTPUT"
+
+      # Build solo quando: push tag v* (release manuale) O pluginVersion cambiata sul branch di default (release automatica)
       - name: Build
+        if: |
+          startsWith(github.ref, 'refs/tags/v') ||
+          (steps.pv_changed.outputs.changed == 'true' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch))
         run: gradle --no-daemon build
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+      - name: Create tag (if missing) - auto bump
+        id: create_tag
+        if: steps.plugin_version.outputs.value != '' && !startsWith(github.ref, 'refs/tags/')
+        uses: actions/github-script@v7
+        env:
+          PLUGIN_VERSION: ${{ steps.plugin_version.outputs.value }}
         with:
-          name: item-elevators-jar
-          path: build/libs/*.jar
+          script: |
+            const version = process.env.PLUGIN_VERSION
+            const tag = `v${version}`
+            const owner = context.repo.owner
+            const repo = context.repo.repo
+            const sha = context.sha
+
+            const defaultBranch = context.payload.repository.default_branch
+            const refName = context.ref.replace('refs/heads/', '')
+            if (refName !== defaultBranch) {
+              core.info(`Not on default branch (${defaultBranch}); skipping tag creation.`)
+              return
+            }
+
+            try {
+              await github.rest.git.getRef({ owner, repo, ref: `tags/${tag}` })
+              core.info(`Tag ${tag} already exists; skipping tag creation.`)
+              core.setOutput('tag', tag)
+              core.setOutput('created', 'false')
+              return
+            } catch (err) {
+              if (err.status !== 404) throw err
+            }
+
+            core.info(`Creating tag ${tag} at ${sha}`)
+            await github.rest.git.createRef({ owner, repo, ref: `refs/tags/${tag}`, sha })
+            core.setOutput('tag', tag)
+            core.setOutput('created', 'true')
+
+      - name: Generate changelog (all commits since previous v* tag)
+        id: changelog
+        if: |
+          startsWith(github.ref, 'refs/tags/v') ||
+          steps.create_tag.outputs.tag != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Determina il tag corrente:
+          # - se push di tag: github.ref_name
+          # - se auto bump: steps.create_tag.outputs.tag
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            CURRENT_TAG="${GITHUB_REF_NAME}"
+          else
+            CURRENT_TAG="${{ steps.create_tag.outputs.tag }}"
+          fi
+
+          # Trova il tag precedente (v*) raggiungibile dal commit precedente
+          # (se non esiste, useremo tutta la history)
+          PREV_TAG="$(git describe --tags --match "v*" --abbrev=0 "${GITHUB_SHA}^" 2>/dev/null || true)"
+
+          # Genera il changelog in una variabile temporanea
+          CHANGELOG=$(
+            echo "## Changelog"
+            echo
+            if [[ -n "$PREV_TAG" ]]; then
+              echo "_Commits da **$PREV_TAG** a **$CURRENT_TAG**_"
+              echo
+              git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..${GITHUB_SHA}"
+            else
+              echo "_Prima release trovata: elenco completo dei commit fino a **$CURRENT_TAG**_"
+              echo
+              git log --no-merges --pretty=format:'- %s (%h)' "${GITHUB_SHA}"
+            fi
+          )
+
+          # Output multiline corretto per GitHub Actions
+          {
+            echo "body<<EOF"
+            echo "$CHANGELOG"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create/Update GitHub Release (auto bump)
+        if: steps.create_tag.outputs.tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.create_tag.outputs.tag }}
+          body: ${{ steps.changelog.outputs.body }}
+          files: |
+            build/libs/*[!l][!l].jar
+          fail_on_unmatched_files: true
+
+      - name: Create/Update GitHub Release (tag push)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.body }}
+          files: |
+            build/libs/*[!l][!l].jar
+          fail_on_unmatched_files: true
