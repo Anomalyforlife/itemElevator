@@ -1,9 +1,8 @@
 package it.anomalyforlife.itemelevators.listeners;
 
-import it.anomalyforlife.itemelevators.ItemElevators;
-import it.anomalyforlife.itemelevators.elevator.Elevator;
-import it.anomalyforlife.itemelevators.gui.ElevatorGUI;
-import it.anomalyforlife.itemelevators.upgrade.UpgradeService.UpgradeResult;
+import java.util.List;
+
+import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -11,9 +10,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.inventory.InventoryHolder;
+import org.bukkit.event.inventory.InventoryMoveItemEvent;
 
-import java.util.List;
+import it.anomalyforlife.itemelevators.ItemElevators;
+import it.anomalyforlife.itemelevators.elevator.Elevator;
+import it.anomalyforlife.itemelevators.gui.ElevatorGUI;
+import it.anomalyforlife.itemelevators.upgrade.UpgradeService.UpgradeResult;
 
 public class InventoryListener implements Listener {
 
@@ -23,54 +25,66 @@ public class InventoryListener implements Listener {
         this.plugin = plugin;
     }
 
-    // -------------------------------------------------------------------------
-    // Close — GUI is read-only, no sync back to chests needed
-    // -------------------------------------------------------------------------
-
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInventoryClose(InventoryCloseEvent event) {
-        InventoryHolder holder = event.getInventory().getHolder();
-        if (!(holder instanceof ElevatorGUI gui)) return;
+        Location location = event.getView().getTopInventory().getLocation();
+        if (location == null) return;
+
+        ElevatorGUI gui = plugin.getElevatorManager().getGUI(location);
+        if (gui == null) return;
 
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            gui.closeIfInactive();
             if (!gui.hasViewers()) {
                 plugin.getElevatorManager().markGUIClosed(gui.getChestLocation());
             }
         }, 1L);
     }
 
-    // -------------------------------------------------------------------------
-    // Click — GUI is read-only; only the upgrade button does something
-    // -------------------------------------------------------------------------
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInventoryClick(InventoryClickEvent event) {
-        InventoryHolder holder = event.getInventory().getHolder();
-        if (!(holder instanceof ElevatorGUI gui)) return;
+        Location location = event.getView().getTopInventory().getLocation();
+        if (location == null) return;
 
-        // Block all interaction — the GUI is view-only
-        event.setCancelled(true);
+        ElevatorGUI gui = plugin.getElevatorManager().getGUI(location);
+        if (gui == null) return;
 
-        int slot = event.getRawSlot();
-        if (slot == ElevatorGUI.UPGRADE_SLOT && event.getWhoClicked() instanceof Player player) {
-            handleUpgrade(player, gui);
+        if (event.getRawSlot() == ElevatorGUI.UPGRADE_SLOT) {
+            event.setCancelled(true);
+            if (event.getWhoClicked() instanceof Player player) {
+                handleUpgrade(player, gui);
+            }
         }
     }
 
-    // -------------------------------------------------------------------------
-    // Drag — block all drags
-    // -------------------------------------------------------------------------
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onInventoryDrag(InventoryDragEvent event) {
-        InventoryHolder holder = event.getInventory().getHolder();
-        if (!(holder instanceof ElevatorGUI)) return;
-        event.setCancelled(true);
+        Location location = event.getView().getTopInventory().getLocation();
+        if (location == null) return;
+
+        if (plugin.getElevatorManager().getGUI(location) == null) return;
+
+        if (event.getRawSlots().contains(ElevatorGUI.UPGRADE_SLOT)) {
+            event.setCancelled(true);
+        }
     }
 
-    // -------------------------------------------------------------------------
-    // Upgrade logic
-    // -------------------------------------------------------------------------
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onInventoryMove(InventoryMoveItemEvent event) {
+        ElevatorGUI sourceGui = getGui(event.getSource().getLocation());
+        ElevatorGUI destinationGui = getGui(event.getDestination().getLocation());
+
+        if (sourceGui == null && destinationGui == null) return;
+
+        if (plugin.getElevatorItem().isUpgradeButton(event.getItem())) {
+            event.setCancelled(true);
+        }
+    }
+
+    private ElevatorGUI getGui(Location location) {
+        if (location == null) return null;
+        return plugin.getElevatorManager().getGUI(location);
+    }
 
     private void handleUpgrade(Player player, ElevatorGUI gui) {
         List<Elevator> chain = plugin.getElevatorManager().getChain(gui.getElevator());

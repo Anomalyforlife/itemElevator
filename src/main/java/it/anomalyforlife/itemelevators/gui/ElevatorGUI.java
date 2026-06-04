@@ -1,5 +1,17 @@
 package it.anomalyforlife.itemelevators.gui;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Chest;
+import org.bukkit.entity.HumanEntity;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+
 import it.anomalyforlife.itemelevators.ItemElevators;
 import it.anomalyforlife.itemelevators.elevator.Elevator;
 import it.anomalyforlife.itemelevators.upgrade.UpgradeConfig;
@@ -7,90 +19,68 @@ import it.anomalyforlife.itemelevators.upgrade.UpgradeService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.block.Chest;
-import org.bukkit.entity.HumanEntity;
-import org.bukkit.entity.Player;
-import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.InventoryHolder;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
- * 36-slot read-only view of a single elevator chest.
- *
- * Slot layout:
- *   0  – 26  → chest contents (display only, items cannot be taken)
- *   27 – 34  → filler (glass pane)
- *   35       → upgrade button
- *
- * Players who want to manage items directly should sneak + right-click to
- * open the physical chest instead.
+ * Controller for the physical chest inventory of a single elevator chest.
+ * Slot 26 is reserved for the upgrade button while the GUI is active.
  */
-public class ElevatorGUI implements InventoryHolder {
+public class ElevatorGUI {
 
-    public static final int UPGRADE_SLOT = 35;
-
-    private static final int CONTROL_ROW_START = 27;
+    public static final int UPGRADE_SLOT = 26;
 
     private final ItemElevators plugin;
     private final Elevator elevator;
     private final Location chestLocation;
-    private final Inventory inventory;
+    private Inventory inventory;
+    private ItemStack savedUpgradeSlot;
+    private boolean active;
 
     public ElevatorGUI(ItemElevators plugin, Elevator elevator, Location chestLocation) {
-        this.plugin        = plugin;
-        this.elevator      = elevator;
+        this.plugin = plugin;
+        this.elevator = elevator;
         this.chestLocation = chestLocation;
-
-        boolean isTop = chestLocation.getBlockY() == elevator.getTopChest().getBlockY();
-        Component title = plugin.getLangManager().get(isTop ? "gui.title-top" : "gui.title-bottom");
-
-        this.inventory = Bukkit.createInventory(this, 36, title);
-        fillControlRow();
-        syncFromChest();
+        refreshInventory();
     }
 
-    // -------------------------------------------------------------------------
-    // Sync — one-way: physical chest → GUI (GUI is read-only, never writes back)
-    // -------------------------------------------------------------------------
-
-    public void syncFromChest() {
-        org.bukkit.block.Block block = chestLocation.getBlock();
-        if (!(block.getState() instanceof Chest chest)) return;
-
-        ItemStack[] contents = chest.getInventory().getContents();
-        for (int i = 0; i < 27; i++) {
-            inventory.setItem(i, contents[i]);
+    private boolean refreshInventory() {
+        if (!(chestLocation.getBlock().getState() instanceof Chest chest)) {
+            inventory = null;
+            return false;
         }
-        refreshUpgradeButton();
+
+        inventory = chest.getInventory();
+        return true;
     }
 
-    // -------------------------------------------------------------------------
-    // Control row
-    // -------------------------------------------------------------------------
+    private boolean ensureActive() {
+        if (!refreshInventory()) return false;
 
-    private void fillControlRow() {
-        ItemStack filler = makeFiller();
-        for (int slot = CONTROL_ROW_START; slot < 36; slot++) {
-            inventory.setItem(slot, filler);
+        if (!active) {
+            savedUpgradeSlot = inventory.getItem(UPGRADE_SLOT);
+            active = true;
         }
-        refreshUpgradeButton();
+
+        inventory.setItem(UPGRADE_SLOT, buildUpgradeButton());
+        return true;
+    }
+
+    private void restoreUpgradeSlot() {
+        if (!refreshInventory()) return;
+
+        inventory.setItem(UPGRADE_SLOT, savedUpgradeSlot);
+        savedUpgradeSlot = null;
+        active = false;
     }
 
     public void refreshUpgradeButton() {
+        if (!active || !refreshInventory()) return;
         inventory.setItem(UPGRADE_SLOT, buildUpgradeButton());
     }
 
     private ItemStack buildUpgradeButton() {
         UpgradeService svc = plugin.getUpgradeService();
-        UpgradeConfig cfg  = svc.getConfig();
-        int level    = svc.getLevel(elevator);
+        UpgradeConfig cfg = svc.getConfig();
+        int level = svc.getLevel(elevator);
         int maxLevel = cfg.getMaxLevel();
         boolean isMax = level >= maxLevel;
 
@@ -120,7 +110,7 @@ public class ElevatorGUI implements InventoryHolder {
             lore.add(line(NamedTextColor.GRAY, "After upgrade: ",
                     NamedTextColor.GREEN, next.itemsPerTransfer() + " items/transfer"));
             lore.add(line(NamedTextColor.GRAY, "Cost: ",
-                    NamedTextColor.AQUA, formatCost(next.cost(), svc)));
+                    NamedTextColor.AQUA, formatCost(next.cost())));
             lore.add(Component.empty());
             lore.add(Component.text("► Click to upgrade", NamedTextColor.GREEN)
                     .decoration(TextDecoration.ITALIC, false));
@@ -132,25 +122,12 @@ public class ElevatorGUI implements InventoryHolder {
 
         meta.lore(lore);
         item.setItemMeta(meta);
+        plugin.getElevatorItem().markUpgradeButton(item);
         return item;
     }
-
-    private ItemStack makeFiller() {
-        ItemStack item = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.displayName(Component.empty());
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
-
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
 
     public boolean isControlSlot(int slot) {
-        return slot >= CONTROL_ROW_START;
+        return slot == UPGRADE_SLOT;
     }
 
     private Component line(NamedTextColor labelColor, String label,
@@ -161,33 +138,44 @@ public class ElevatorGUI implements InventoryHolder {
                         .decoration(TextDecoration.ITALIC, false));
     }
 
-    private String formatCost(int cost, UpgradeService svc) {
+    private String formatCost(int cost) {
         if (cost <= 0) return "Free";
         if (plugin.hasEconomy()) return plugin.getEconomy().format(cost);
         return String.valueOf(cost);
     }
 
-    // -------------------------------------------------------------------------
-    // Viewer management
-    // -------------------------------------------------------------------------
-
     public void open(Player player) {
-        player.openInventory(inventory);
+        if (ensureActive()) {
+            player.openInventory(inventory);
+        }
     }
 
     public void closeAll() {
+        if (inventory == null) return;
         for (HumanEntity viewer : List.copyOf(inventory.getViewers())) {
             viewer.closeInventory();
         }
     }
 
     public boolean hasViewers() {
-        return !inventory.getViewers().isEmpty();
+        return inventory != null && !inventory.getViewers().isEmpty();
     }
 
-    public Elevator getElevator()          { return elevator; }
-    public Location getChestLocation()     { return chestLocation; }
+    public void closeIfInactive() {
+        if (!hasViewers()) {
+            restoreUpgradeSlot();
+        }
+    }
 
-    @Override
-    public Inventory getInventory()        { return inventory; }
+    public Elevator getElevator() {
+        return elevator;
+    }
+
+    public Location getChestLocation() {
+        return chestLocation;
+    }
+
+    public Inventory getInventory() {
+        return inventory;
+    }
 }

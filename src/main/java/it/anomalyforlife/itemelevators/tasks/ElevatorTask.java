@@ -1,16 +1,17 @@
 package it.anomalyforlife.itemelevators.tasks;
 
-import it.anomalyforlife.itemelevators.ItemElevators;
-import it.anomalyforlife.itemelevators.elevator.Elevator;
-import it.anomalyforlife.itemelevators.elevator.ElevatorManager;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 import org.bukkit.block.Chest;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import it.anomalyforlife.itemelevators.ItemElevators;
+import it.anomalyforlife.itemelevators.elevator.Elevator;
+import it.anomalyforlife.itemelevators.elevator.ElevatorManager;
 
 /**
  * Transfers items from each elevator's bottom chest to its top chest.
@@ -82,6 +83,7 @@ public class ElevatorTask extends BukkitRunnable {
         for (int i = 0; i < contents.length && moved < limit; i++) {
             ItemStack item = contents[i];
             if (item == null || item.getType().isAir()) continue;
+            if (plugin.getElevatorItem().isUpgradeButton(item)) continue;
 
             // How many we're allowed to move in this cycle
             int canMove = Math.min(item.getAmount(), limit - moved);

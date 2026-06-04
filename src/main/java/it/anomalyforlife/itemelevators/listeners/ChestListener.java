@@ -1,10 +1,7 @@
 package it.anomalyforlife.itemelevators.listeners;
 
-import it.anomalyforlife.itemelevators.ItemElevators;
-import it.anomalyforlife.itemelevators.elevator.Elevator;
-import it.anomalyforlife.itemelevators.elevator.ElevatorItem;
-import it.anomalyforlife.itemelevators.elevator.ElevatorManager;
-import it.anomalyforlife.itemelevators.gui.ElevatorGUI;
+import java.util.Optional;
+
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -17,7 +14,11 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
-import java.util.Optional;
+import it.anomalyforlife.itemelevators.ItemElevators;
+import it.anomalyforlife.itemelevators.elevator.Elevator;
+import it.anomalyforlife.itemelevators.elevator.ElevatorItem;
+import it.anomalyforlife.itemelevators.elevator.ElevatorManager;
+import it.anomalyforlife.itemelevators.gui.ElevatorGUI;
 
 public class ChestListener implements Listener {
 
@@ -77,9 +78,6 @@ public class ChestListener implements Listener {
 
         // Only intercept special elevator chests
         if (!elevatorItem.isElevatorBlock(block)) return;
-
-        // Sneaking → let vanilla behaviour through (allows placing blocks against the chest)
-        if (event.getPlayer().isSneaking()) return;
 
         event.setCancelled(true);
         Player player = event.getPlayer();
@@ -152,7 +150,6 @@ public class ChestListener implements Listener {
         }
 
         ElevatorGUI gui = manager.getOrCreateGUI(elevator, block.getLocation());
-        if (!gui.hasViewers()) gui.syncFromChest();
         gui.open(player);
     }
 

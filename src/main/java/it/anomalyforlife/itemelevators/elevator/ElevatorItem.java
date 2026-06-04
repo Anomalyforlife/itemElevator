@@ -1,8 +1,7 @@
 package it.anomalyforlife.itemelevators.elevator;
 
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
+import java.util.List;
+
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
@@ -13,16 +12,20 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
-import java.util.List;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 
 public final class ElevatorItem {
 
     private final NamespacedKey markerKey;
     private final NamespacedKey levelKey;
+    private final NamespacedKey upgradeButtonKey;
 
     public ElevatorItem(Plugin plugin) {
-        this.markerKey = new NamespacedKey(plugin, "elevator_chest");
-        this.levelKey  = new NamespacedKey(plugin, "elevator_level");
+        this.markerKey        = new NamespacedKey(plugin, "elevator_chest");
+        this.levelKey         = new NamespacedKey(plugin, "elevator_level");
+        this.upgradeButtonKey = new NamespacedKey(plugin, "upgrade_button");
     }
 
     // -------------------------------------------------------------------------
@@ -51,6 +54,18 @@ public final class ElevatorItem {
     public boolean isElevatorItem(ItemStack item) {
         if (item == null || item.getType() != Material.CHEST || !item.hasItemMeta()) return false;
         return item.getItemMeta().getPersistentDataContainer().has(markerKey, PersistentDataType.BOOLEAN);
+    }
+
+    public boolean isUpgradeButton(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return false;
+        return item.getItemMeta().getPersistentDataContainer().has(upgradeButtonKey, PersistentDataType.BOOLEAN);
+    }
+
+    public void markUpgradeButton(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return;
+        ItemMeta meta = item.getItemMeta();
+        meta.getPersistentDataContainer().set(upgradeButtonKey, PersistentDataType.BOOLEAN, true);
+        item.setItemMeta(meta);
     }
 
     public int getItemLevel(ItemStack item) {

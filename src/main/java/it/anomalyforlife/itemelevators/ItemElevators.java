@@ -1,5 +1,11 @@
 package it.anomalyforlife.itemelevators;
 
+import java.util.Objects;
+
+import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.RegisteredServiceProvider;
+import org.bukkit.plugin.java.JavaPlugin;
+
 import it.anomalyforlife.itemelevators.commands.ElevatorCommand;
 import it.anomalyforlife.itemelevators.config.ConfigManager;
 import it.anomalyforlife.itemelevators.config.LangManager;
@@ -11,11 +17,6 @@ import it.anomalyforlife.itemelevators.tasks.ElevatorTask;
 import it.anomalyforlife.itemelevators.upgrade.UpgradeConfig;
 import it.anomalyforlife.itemelevators.upgrade.UpgradeService;
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.command.PluginCommand;
-import org.bukkit.plugin.RegisteredServiceProvider;
-import org.bukkit.plugin.java.JavaPlugin;
-
-import java.util.Objects;
 
 public class ItemElevators extends JavaPlugin {
 
@@ -62,6 +63,9 @@ public class ItemElevators extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (elevatorManager != null) {
+            elevatorManager.closeAllGUIs();
+        }
         if (elevatorTask != null) {
             elevatorTask.cancel();
         }

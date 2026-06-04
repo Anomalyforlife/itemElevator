@@ -1,7 +1,17 @@
 package it.anomalyforlife.itemelevators.elevator;
 
-import it.anomalyforlife.itemelevators.ItemElevators;
-import it.anomalyforlife.itemelevators.gui.ElevatorGUI;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -9,9 +19,8 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.*;
+import it.anomalyforlife.itemelevators.ItemElevators;
+import it.anomalyforlife.itemelevators.gui.ElevatorGUI;
 
 public class ElevatorManager {
 
@@ -292,8 +301,20 @@ public class ElevatorManager {
                 k -> new ElevatorGUI(plugin, elevator, chestLocation));
     }
 
+    public ElevatorGUI getGUI(Location chestLocation) {
+        return openGUIs.get(key(chestLocation));
+    }
+
     public void markGUIClosed(Location chestLocation) {
         openGUIs.remove(key(chestLocation));
+    }
+
+    public void closeAllGUIs() {
+        for (ElevatorGUI gui : new ArrayList<>(openGUIs.values())) {
+            gui.closeAll();
+            gui.closeIfInactive();
+        }
+        openGUIs.clear();
     }
 
     // -------------------------------------------------------------------------
