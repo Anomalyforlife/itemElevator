@@ -1,12 +1,13 @@
 package it.anomalyforlife.itemelevators.upgrade;
 
-import it.anomalyforlife.itemelevators.elevator.Elevator;
-import net.milkbowl.vault.economy.Economy;
-import org.bukkit.entity.Player;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.bukkit.entity.Player;
+
+import it.anomalyforlife.itemelevators.elevator.Elevator;
+import net.milkbowl.vault.economy.Economy;
 
 public final class UpgradeService {
 
@@ -102,7 +103,9 @@ public final class UpgradeService {
         if (current >= config.getMaxLevel()) return UpgradeResult.MAX_LEVEL;
 
         int next = current + 1;
-        double totalCost = (double) config.getLevelData(next).cost() * chain.size();
+        // Charge per chest (a chain of N elevators connects N+1 chests)
+        int chestCount = chain.size() + 1;
+        double totalCost = (double) config.getLevelData(next).cost() * chestCount;
 
         if (totalCost > 0 && config.isVaultRequired()) {
             if (economy == null) return UpgradeResult.VAULT_NOT_AVAILABLE;
@@ -121,7 +124,8 @@ public final class UpgradeService {
         if (chain.isEmpty()) return 0;
         int current = chain.stream().mapToInt(e -> levelCache.getOrDefault(e, 1)).min().orElse(1);
         if (current >= config.getMaxLevel()) return 0;
-        return (double) config.getLevelData(current + 1).cost() * chain.size();
+        int chestCount = chain.size() + 1;
+        return (double) config.getLevelData(current + 1).cost() * chestCount;
     }
 
     // -------------------------------------------------------------------------
