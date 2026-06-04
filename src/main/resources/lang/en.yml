@@ -10,12 +10,13 @@ plugin:
   disabled: "ItemElevators disabled!"
 
 elevator:
-  created: "<prefix><green>Elevator activated! Transferring <white>{interval}</white> ticks, <white>{items}</white> item(s)/cycle."
+  created: "<prefix><green>Elevator linked! Transferring every <white>{interval}</white> ticks, <white>{items}</white> item(s)/cycle."
   removed: "<prefix><yellow>Elevator deactivated (a chest was removed)."
   invalid: "<prefix><red>This elevator is no longer valid."
   already-exists: "<prefix><yellow>This chest is already part of an active elevator."
   not-found: "<prefix><red>No elevator found at this location."
   no-permission: "<prefix><red>You don't have permission to create elevators."
+  no-partner: "<prefix><red>No elevator chest found within range above or below."
 
 gui:
   title: "<gold><bold>✦ Item Elevator ✦</bold></gold>"
@@ -43,8 +44,11 @@ command:
   list-empty: "<prefix><yellow>No active elevators registered."
   remove-success: "<prefix><green>Elevator removed successfully."
   remove-fail: "<prefix><red>Look at an elevator chest to remove it."
+  give-success: "<prefix><green>Gave <white>{amount}</white> elevator chest(s) to <white>{player}</white>."
+  give-fail: "<prefix><red>Player <white>{player}</white> not found."
   usage: |
     <gold><bold>--- ItemElevators Commands ---</bold></gold>
+    <yellow>/ie give <player> [amount] <white>- Give elevator chest items
     <yellow>/ie reload <white>- Reload configuration
     <yellow>/ie list <white>- List all active elevators
     <yellow>/ie remove <white>- Remove the elevator you are looking at

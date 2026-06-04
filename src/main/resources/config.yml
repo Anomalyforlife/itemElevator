@@ -6,10 +6,9 @@
 # How often (in ticks) the elevator transfers items. 20 ticks = 1 second. Min: 1
 transfer-interval: 10
 
-# Block type that must exist between the two chests. Default: DIAMOND_BLOCK
-conductor-block: DIAMOND_BLOCK
-
-# Maximum conductor blocks allowed between the two chests. Range: 1-20
+# Maximum vertical distance (in blocks) allowed between two linked elevator chests.
+# Chests can be chained: if max-distance is 10 you can place chests every 10 blocks
+# to relay items over any height.
 max-distance: 10
 
 # Language file to use (lang/<language>.yml). Available: en, it
@@ -18,7 +17,7 @@ language: en
 # Economy settings (requires Vault + a compatible economy plugin)
 economy:
   enabled: false
-  # Cost to activate a new elevator (0 = free)
+  # Cost to activate a new elevator link (0 = free)
   creation-cost: 100.0
 
 # =============================================

@@ -3,6 +3,7 @@ package it.anomalyforlife.itemelevators;
 import it.anomalyforlife.itemelevators.commands.ElevatorCommand;
 import it.anomalyforlife.itemelevators.config.ConfigManager;
 import it.anomalyforlife.itemelevators.config.LangManager;
+import it.anomalyforlife.itemelevators.elevator.ElevatorItem;
 import it.anomalyforlife.itemelevators.elevator.ElevatorManager;
 import it.anomalyforlife.itemelevators.listeners.ChestListener;
 import it.anomalyforlife.itemelevators.listeners.InventoryListener;
@@ -22,6 +23,7 @@ public class ItemElevators extends JavaPlugin {
 
     private ConfigManager configManager;
     private LangManager langManager;
+    private ElevatorItem elevatorItem;
     private ElevatorManager elevatorManager;
     private UpgradeService upgradeService;
     private Economy economy;
@@ -35,6 +37,7 @@ public class ItemElevators extends JavaPlugin {
 
         configManager = new ConfigManager(this);
         langManager = new LangManager(this);
+        elevatorItem = new ElevatorItem(this);
 
         setupEconomy();
 
@@ -102,10 +105,11 @@ public class ItemElevators extends JavaPlugin {
     }
 
     public static ItemElevators getInstance() { return instance; }
-    public ConfigManager getConfigManager() { return configManager; }
-    public LangManager getLangManager() { return langManager; }
+    public ConfigManager getConfigManager()   { return configManager; }
+    public LangManager getLangManager()       { return langManager; }
+    public ElevatorItem getElevatorItem()     { return elevatorItem; }
     public ElevatorManager getElevatorManager() { return elevatorManager; }
     public UpgradeService getUpgradeService() { return upgradeService; }
-    public Economy getEconomy() { return economy; }
-    public boolean hasEconomy() { return economy != null; }
+    public Economy getEconomy()               { return economy; }
+    public boolean hasEconomy()               { return economy != null; }
 }

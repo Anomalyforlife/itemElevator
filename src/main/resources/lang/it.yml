@@ -10,12 +10,13 @@ plugin:
   disabled: "ItemElevators disabilitato!"
 
 elevator:
-  created: "<prefix><green>Elevator attivato! Trasferimento ogni <white>{interval}</white> tick, <white>{items}</white> oggetto/i per ciclo."
+  created: "<prefix><green>Elevator collegato! Trasferimento ogni <white>{interval}</white> tick, <white>{items}</white> oggetto/i per ciclo."
   removed: "<prefix><yellow>Elevator disattivato (una chest è stata rimossa)."
   invalid: "<prefix><red>Questo elevator non è più valido."
   already-exists: "<prefix><yellow>Questa chest fa già parte di un elevator attivo."
   not-found: "<prefix><red>Nessun elevator trovato in questa posizione."
   no-permission: "<prefix><red>Non hai il permesso per creare elevator."
+  no-partner: "<prefix><red>Nessuna chest elevator trovata nel raggio sopra o sotto."
 
 gui:
   title: "<gold><bold>✦ Item Elevator ✦</bold></gold>"
@@ -43,8 +44,11 @@ command:
   list-empty: "<prefix><yellow>Nessun elevator attivo registrato."
   remove-success: "<prefix><green>Elevator rimosso con successo."
   remove-fail: "<prefix><red>Guarda una chest di un elevator per rimuoverlo."
+  give-success: "<prefix><green>Date <white>{amount}</white> chest elevator a <white>{player}</white>."
+  give-fail: "<prefix><red>Giocatore <white>{player}</white> non trovato."
   usage: |
     <gold><bold>--- Comandi ItemElevators ---</bold></gold>
+    <yellow>/ie give <giocatore> [quantità] <white>- Dai chest elevator
     <yellow>/ie reload <white>- Ricarica la configurazione
     <yellow>/ie list <white>- Lista di tutti gli elevator attivi
     <yellow>/ie remove <white>- Rimuovi l'elevator che stai guardando

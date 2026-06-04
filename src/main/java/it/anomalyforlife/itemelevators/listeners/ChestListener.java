@@ -2,6 +2,7 @@ package it.anomalyforlife.itemelevators.listeners;
 
 import it.anomalyforlife.itemelevators.ItemElevators;
 import it.anomalyforlife.itemelevators.elevator.Elevator;
+import it.anomalyforlife.itemelevators.elevator.ElevatorItem;
 import it.anomalyforlife.itemelevators.elevator.ElevatorManager;
 import it.anomalyforlife.itemelevators.gui.ElevatorGUI;
 import org.bukkit.Material;
@@ -26,32 +27,52 @@ public class ChestListener implements Listener {
     }
 
     // -------------------------------------------------------------------------
-    // Chest right-click — detect or open elevator GUI
+    // Block place — mark the placed block's TileState PDC if it came from a
+    // special elevator chest item, so we can identify it later.
+    // -------------------------------------------------------------------------
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockPlace(BlockPlaceEvent event) {
+        ElevatorItem elevatorItem = plugin.getElevatorItem();
+        if (!elevatorItem.isElevatorItem(event.getItemInHand())) return;
+        int level = elevatorItem.getItemLevel(event.getItemInHand());
+        elevatorItem.markBlock(event.getBlock(), level);
+    }
+
+    // -------------------------------------------------------------------------
+    // Chest right-click — only elevator chests are intercepted; regular chests
+    // open normally.
     // -------------------------------------------------------------------------
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onChestClick(PlayerInteractEvent event) {
-        // Only main-hand, right-click on a block
         if (event.getHand() != EquipmentSlot.HAND) return;
         if (!event.getAction().isRightClick()) return;
         if (event.getClickedBlock() == null) return;
 
         Block block = event.getClickedBlock();
-        if (block.getType() != Material.CHEST) return;
+        ElevatorItem elevatorItem = plugin.getElevatorItem();
 
+        // Only intercept special elevator chests
+        if (!elevatorItem.isElevatorBlock(block)) return;
+
+        // Sneaking → let vanilla behaviour through (allows placing blocks against the chest)
+        if (event.getPlayer().isSneaking()) return;
+
+        event.setCancelled(true);
         Player player = event.getPlayer();
         ElevatorManager manager = plugin.getElevatorManager();
 
-        Optional<Elevator> elevatorOpt = manager.getElevatorAt(block.getLocation());
+        // If this chest is already the BOTTOM of an elevator, open its GUI.
+        // If it's only a TOP (or unlinked), try to create a new elevator first.
+        Optional<Elevator> bottomElevator = manager.getBottomElevatorAt(block.getLocation());
 
-        if (elevatorOpt.isEmpty()) {
-            // Try to detect a new elevator
-            elevatorOpt = manager.detectElevator(block.getLocation());
+        if (bottomElevator.isEmpty()) {
+            Optional<Elevator> detected = manager.detectElevator(block.getLocation());
 
-            if (elevatorOpt.isPresent()) {
-                Elevator elevator = elevatorOpt.get();
+            if (detected.isPresent()) {
+                Elevator elevator = detected.get();
 
-                // Permission check
                 if (!player.hasPermission("itemelevators.create")) {
                     plugin.getLangManager().send(player, "elevator.no-permission");
                     return;
@@ -61,129 +82,95 @@ public class ChestListener implements Listener {
                 if (plugin.getConfigManager().isEconomyEnabled()
                         && plugin.hasEconomy()
                         && !player.hasPermission("itemelevators.bypass-cost")) {
-
                     double cost = plugin.getConfigManager().getCreationCost();
                     if (cost > 0) {
                         if (!plugin.getEconomy().has(player, cost)) {
                             plugin.getLangManager().send(player, "economy.not-enough",
                                     "{cost}", plugin.getEconomy().format(cost));
-                            event.setCancelled(true);
                             return;
                         }
                         plugin.getEconomy().withdrawPlayer(player, cost);
                         plugin.getLangManager().send(player, "economy.charged",
                                 "{cost}", plugin.getEconomy().format(cost));
-                    } else if (player.hasPermission("itemelevators.bypass-cost")) {
-                        plugin.getLangManager().send(player, "economy.bypass");
                     }
                 }
 
+                // Carry the level from the right-clicked (bottom) chest
+                int level = elevatorItem.getBlockLevel(block);
                 manager.registerElevator(elevator);
-                plugin.getUpgradeService().registerElevator(elevator);
+                plugin.getUpgradeService().registerElevator(elevator, level);
                 manager.saveData();
 
                 plugin.getLangManager().send(player, "elevator.created",
                         "{interval}", String.valueOf(plugin.getConfigManager().getTransferInterval()),
-                        "{items}", String.valueOf(plugin.getUpgradeService().getItemsPerTransfer(elevator)));
+                        "{items}",    String.valueOf(plugin.getUpgradeService().getItemsPerTransfer(elevator)));
+
+                bottomElevator = Optional.of(elevator);
             }
         }
 
-        // Open GUI if this chest is now part of an elevator
-        if (elevatorOpt.isPresent()) {
-            event.setCancelled(true);
-            Elevator elevator = elevatorOpt.get();
+        // Determine which elevator to show: prefer the one where this chest is
+        // the bottom (outgoing), fall back to any elevator it belongs to.
+        Optional<Elevator> guiTarget = bottomElevator.isPresent()
+                ? bottomElevator
+                : manager.getElevatorAt(block.getLocation());
 
-            // Validate that physical blocks are still intact
-            if (!isValidElevatorState(elevator)) {
-                manager.unregisterElevator(elevator);
-                manager.saveData();
-                plugin.getLangManager().send(player, "elevator.invalid");
-                return;
-            }
-
-            ElevatorGUI gui = manager.getOrCreateGUI(elevator);
-            // Refresh contents before opening for this player
-            if (!gui.hasViewers()) {
-                gui.syncFromChests();
-            }
-            gui.open(player);
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Block break — invalidate elevator if a chest or conductor is removed
-    // -------------------------------------------------------------------------
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onBlockBreak(BlockBreakEvent event) {
-        Block block = event.getBlock();
-        ElevatorManager manager = plugin.getElevatorManager();
-        Material conductor = plugin.getConfigManager().getConductorMaterial();
-
-        if (block.getType() == Material.CHEST) {
-            if (manager.isElevatorChest(block.getLocation())) {
-                manager.invalidateAt(block.getLocation());
-                manager.saveData();
-                Player player = event.getPlayer();
-                plugin.getLangManager().send(player, "elevator.removed");
-            }
+        if (guiTarget.isEmpty()) {
+            plugin.getLangManager().send(player, "elevator.no-partner");
             return;
         }
 
-        // Conductor block removed — check if it was part of any elevator column
-        if (block.getType() == conductor) {
-            invalidateElevatorInColumn(block, manager);
+        Elevator elevator = guiTarget.get();
+
+        if (!isValidElevatorState(elevator)) {
+            manager.unregisterElevator(elevator);
+            manager.saveData();
+            plugin.getLangManager().send(player, "elevator.invalid");
+            return;
         }
+
+        ElevatorGUI gui = manager.getOrCreateGUI(elevator);
+        if (!gui.hasViewers()) gui.syncFromChests();
+        gui.open(player);
     }
 
     // -------------------------------------------------------------------------
-    // Block place — no-op here; detection is lazy (on interact)
+    // Block break — intercept elevator chests to cancel the vanilla drop and
+    // replace it with the special item carrying the upgrade level.
     // -------------------------------------------------------------------------
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onBlockPlace(BlockPlaceEvent event) {
-        // A newly placed block inside an existing elevator column breaks it
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
-        if (block.getType() == Material.CHEST) return; // Handled on interact
+        if (block.getType() != Material.CHEST) return;
+
+        ElevatorItem elevatorItem = plugin.getElevatorItem();
+        if (!elevatorItem.isElevatorBlock(block)) return;
+
         ElevatorManager manager = plugin.getElevatorManager();
-        invalidateElevatorInColumn(block, manager);
+
+        int level;
+        if (manager.isElevatorChest(block.getLocation())) {
+            level = manager.getMaxLevelAt(block.getLocation());
+            manager.invalidateAt(block.getLocation());
+            manager.saveData();
+            plugin.getLangManager().send(event.getPlayer(), "elevator.removed");
+        } else {
+            level = elevatorItem.getBlockLevel(block);
+        }
+
+        // Drop the special item instead of a plain chest
+        event.setDropItems(false);
+        block.getWorld().dropItemNaturally(block.getLocation(), elevatorItem.create(level));
     }
 
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
-    private void invalidateElevatorInColumn(Block changedBlock, ElevatorManager manager) {
-        int maxDist = plugin.getConfigManager().getMaxDistance();
-
-        // Scan up and down from the changed block looking for registered elevator chests
-        for (int dir : new int[]{1, -1}) {
-            for (int dist = 1; dist <= maxDist + 1; dist++) {
-                Block candidate = changedBlock.getRelative(0, dist * dir, 0);
-                if (candidate.getType() == Material.CHEST && manager.isElevatorChest(candidate.getLocation())) {
-                    manager.invalidateAt(candidate.getLocation());
-                    manager.saveData();
-                    return;
-                }
-                // Stop scanning if we hit something that cannot be part of the column
-                Material m = candidate.getType();
-                if (m != Material.CHEST && m != plugin.getConfigManager().getConductorMaterial() && m != Material.AIR) {
-                    break;
-                }
-            }
-        }
-    }
-
     private boolean isValidElevatorState(Elevator elevator) {
-        Block bottom = elevator.getBottomChest().getBlock();
-        Block top = elevator.getTopChest().getBlock();
-        if (bottom.getType() != Material.CHEST || top.getType() != Material.CHEST) return false;
-
-        Material conductor = plugin.getConfigManager().getConductorMaterial();
-        int dy = top.getY() - bottom.getY();
-        for (int i = 1; i < dy; i++) {
-            if (bottom.getRelative(0, i, 0).getType() != conductor) return false;
-        }
-        return true;
+        ElevatorItem elevatorItem = plugin.getElevatorItem();
+        return elevatorItem.isElevatorBlock(elevator.getBottomChest().getBlock())
+                && elevatorItem.isElevatorBlock(elevator.getTopChest().getBlock());
     }
 }
