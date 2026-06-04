@@ -38,7 +38,6 @@ public class ElevatorTask extends BukkitRunnable {
         List<Elevator> toRemove = new ArrayList<>();
 
         for (Elevator elevator : snapshot) {
-            if (manager.hasOpenGUI(elevator)) continue;
             if (!elevator.isChunksLoaded()) continue;
 
             if (!processElevator(elevator)) {

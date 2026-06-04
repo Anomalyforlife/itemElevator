@@ -7,6 +7,7 @@ import it.anomalyforlife.itemelevators.elevator.ElevatorManager;
 import it.anomalyforlife.itemelevators.gui.ElevatorGUI;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -31,12 +32,33 @@ public class ChestListener implements Listener {
     // special elevator chest item, so we can identify it later.
     // -------------------------------------------------------------------------
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    private static final BlockFace[] HORIZONTALS = {
+            BlockFace.NORTH, BlockFace.SOUTH, BlockFace.EAST, BlockFace.WEST
+    };
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         ElevatorItem elevatorItem = plugin.getElevatorItem();
-        if (!elevatorItem.isElevatorItem(event.getItemInHand())) return;
-        int level = elevatorItem.getItemLevel(event.getItemInHand());
-        elevatorItem.markBlock(event.getBlock(), level);
+        Block placed = event.getBlock();
+        boolean placingElevator = elevatorItem.isElevatorItem(event.getItemInHand());
+
+        // Prevent double-chest formation involving any elevator chest.
+        // Only relevant when placing a chest (plain or elevator).
+        if (placed.getType() == Material.CHEST) {
+            for (BlockFace face : HORIZONTALS) {
+                Block neighbour = placed.getRelative(face);
+                if (neighbour.getType() != Material.CHEST) continue;
+
+                if (placingElevator || elevatorItem.isElevatorBlock(neighbour)) {
+                    event.setCancelled(true);
+                    plugin.getLangManager().send(event.getPlayer(), "elevator.no-double-chest");
+                    return;
+                }
+            }
+        }
+
+        if (!placingElevator) return;
+        elevatorItem.markBlock(placed, elevatorItem.getItemLevel(event.getItemInHand()));
     }
 
     // -------------------------------------------------------------------------
@@ -129,8 +151,8 @@ public class ChestListener implements Listener {
             return;
         }
 
-        ElevatorGUI gui = manager.getOrCreateGUI(elevator);
-        if (!gui.hasViewers()) gui.syncFromChests();
+        ElevatorGUI gui = manager.getOrCreateGUI(elevator, block.getLocation());
+        if (!gui.hasViewers()) gui.syncFromChest();
         gui.open(player);
     }
 

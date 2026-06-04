@@ -17,14 +17,14 @@ elevator:
   not-found: "<prefix><red>Nessun elevator trovato in questa posizione."
   no-permission: "<prefix><red>Non hai il permesso per creare elevator."
   no-partner: "<prefix><red>Nessuna chest elevator trovata nel raggio sopra o sotto."
+  no-double-chest: "<prefix><red>Le chest elevator non possono diventare chest doppie."
 
 gui:
-  title: "<gold><bold>✦ Item Elevator ✦</bold></gold>"
-  top-label: "<green><bold>▲ CHEST SUPERIORE</bold></green>"
-  bottom-label: "<red><bold>▼ CHEST INFERIORE</bold></red>"
+  title-top: "<gold><bold>✦ Item Elevator ✦</bold></gold> <green>[SUPERIORE]</green>"
+  title-bottom: "<gold><bold>✦ Item Elevator ✦</bold></gold> <red>[INFERIORE]</red>"
 
 upgrade:
-  success: "<prefix><green>Potenziato al <white>Lv {level}</white>! Ora sposta <white>{items}</white> oggetto/i per ciclo."
+  success: "<prefix><green>Potenziato al <white>Lv {level}</white>! Sposta <white>{items}</white> oggetto/i per ciclo su <white>{chain}</white> elevator."
   max-level: "<prefix><gold>Questo elevator è già al livello massimo!"
   not-enough-money: "<prefix><red>Ti servono <white>{cost}</white> per potenziare."
   vault-unavailable: "<prefix><red>Nessun plugin economia disponibile."

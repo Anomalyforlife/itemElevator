@@ -5,6 +5,7 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public final class UpgradeService {
@@ -82,6 +83,45 @@ public final class UpgradeService {
 
         levelCache.put(elevator, next);
         return UpgradeResult.SUCCESS;
+    }
+
+    // -------------------------------------------------------------------------
+    // Chain upgrade
+    // -------------------------------------------------------------------------
+
+    /**
+     * Upgrades every elevator in the chain together. The cost is the per-level
+     * unit cost multiplied by the number of elevators in the chain.
+     */
+    public UpgradeResult tryUpgradeChain(Player player, List<Elevator> chain) {
+        if (!config.isEnabled()) return UpgradeResult.NOT_ENABLED;
+        if (chain.isEmpty()) return UpgradeResult.DB_ERROR;
+
+        // Use the minimum level in the chain so all reach the same next level
+        int current = chain.stream().mapToInt(e -> levelCache.getOrDefault(e, 1)).min().orElse(1);
+        if (current >= config.getMaxLevel()) return UpgradeResult.MAX_LEVEL;
+
+        int next = current + 1;
+        double totalCost = (double) config.getLevelData(next).cost() * chain.size();
+
+        if (totalCost > 0 && config.isVaultRequired()) {
+            if (economy == null) return UpgradeResult.VAULT_NOT_AVAILABLE;
+            if (!economy.has(player, totalCost)) return UpgradeResult.NOT_ENOUGH_MONEY;
+            economy.withdrawPlayer(player, totalCost);
+        }
+
+        for (Elevator e : chain) {
+            levelCache.put(e, next);
+        }
+        return UpgradeResult.SUCCESS;
+    }
+
+    /** Returns the total upgrade cost for the next level across all elevators in the chain. */
+    public double getChainUpgradeCost(List<Elevator> chain) {
+        if (chain.isEmpty()) return 0;
+        int current = chain.stream().mapToInt(e -> levelCache.getOrDefault(e, 1)).min().orElse(1);
+        if (current >= config.getMaxLevel()) return 0;
+        return (double) config.getLevelData(current + 1).cost() * chain.size();
     }
 
     // -------------------------------------------------------------------------

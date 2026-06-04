@@ -17,14 +17,14 @@ elevator:
   not-found: "<prefix><red>No elevator found at this location."
   no-permission: "<prefix><red>You don't have permission to create elevators."
   no-partner: "<prefix><red>No elevator chest found within range above or below."
+  no-double-chest: "<prefix><red>Elevator chests cannot form double chests."
 
 gui:
-  title: "<gold><bold>✦ Item Elevator ✦</bold></gold>"
-  top-label: "<green><bold>▲ TOP CHEST</bold></green>"
-  bottom-label: "<red><bold>▼ BOTTOM CHEST</bold></red>"
+  title-top: "<gold><bold>✦ Item Elevator ✦</bold></gold> <green>[TOP]</green>"
+  title-bottom: "<gold><bold>✦ Item Elevator ✦</bold></gold> <red>[BOTTOM]</red>"
 
 upgrade:
-  success: "<prefix><green>Upgraded to <white>Lv {level}</white>! Now moving <white>{items}</white> item(s)/cycle."
+  success: "<prefix><green>Upgraded to <white>Lv {level}</white>! Moving <white>{items}</white> item(s)/cycle across <white>{chain}</white> elevator(s)."
   max-level: "<prefix><gold>This elevator is already at max level!"
   not-enough-money: "<prefix><red>You need <white>{cost}</white> to upgrade."
   vault-unavailable: "<prefix><red>No economy plugin is available."

@@ -27,7 +27,8 @@ public class ElevatorManager {
     private final Map<Location, Elevator> topIndex    = new HashMap<>();
 
     private final Set<Elevator> elevators = new LinkedHashSet<>();
-    private final Map<Elevator, ElevatorGUI> openGUIs = new HashMap<>();
+    /** Keyed by the specific chest location being viewed, not the elevator. */
+    private final Map<Location, ElevatorGUI> openGUIs = new HashMap<>();
 
     private File dataFile;
     private FileConfiguration data;
@@ -184,8 +185,11 @@ public class ElevatorManager {
         topIndex.remove(key(elevator.getTopChest()));
         plugin.getUpgradeService().unregisterElevator(elevator);
 
-        ElevatorGUI gui = openGUIs.remove(elevator);
-        if (gui != null) gui.closeAll();
+        // Close any open GUIs for either chest of this elevator
+        for (Location loc : List.of(elevator.getBottomChest(), elevator.getTopChest())) {
+            ElevatorGUI gui = openGUIs.remove(key(loc));
+            if (gui != null) gui.closeAll();
+        }
     }
 
     /**
@@ -250,6 +254,31 @@ public class ElevatorManager {
         return level;
     }
 
+    /**
+     * Returns all elevators that form a continuous vertical chain with the
+     * given elevator, ordered from bottom to top.
+     */
+    public List<Elevator> getChain(Elevator elevator) {
+        LinkedList<Elevator> chain = new LinkedList<>();
+        chain.add(elevator);
+
+        // Walk down: find elevators whose top chest is our bottom's top → i.e., someone feeds into our bottom
+        Elevator below = topIndex.get(key(elevator.getBottomChest()));
+        while (below != null) {
+            chain.addFirst(below);
+            below = topIndex.get(key(below.getBottomChest()));
+        }
+
+        // Walk up: find elevators whose bottom chest is our top chest
+        Elevator above = bottomIndex.get(key(elevator.getTopChest()));
+        while (above != null) {
+            chain.addLast(above);
+            above = bottomIndex.get(key(above.getTopChest()));
+        }
+
+        return new ArrayList<>(chain);
+    }
+
     public Set<Elevator> getAllElevators() {
         return Collections.unmodifiableSet(elevators);
     }
@@ -258,16 +287,13 @@ public class ElevatorManager {
     // GUI management
     // -------------------------------------------------------------------------
 
-    public ElevatorGUI getOrCreateGUI(Elevator elevator) {
-        return openGUIs.computeIfAbsent(elevator, e -> new ElevatorGUI(plugin, e));
+    public ElevatorGUI getOrCreateGUI(Elevator elevator, Location chestLocation) {
+        return openGUIs.computeIfAbsent(key(chestLocation),
+                k -> new ElevatorGUI(plugin, elevator, chestLocation));
     }
 
-    public void markGUIClosed(Elevator elevator) {
-        openGUIs.remove(elevator);
-    }
-
-    public boolean hasOpenGUI(Elevator elevator) {
-        return openGUIs.containsKey(elevator);
+    public void markGUIClosed(Location chestLocation) {
+        openGUIs.remove(key(chestLocation));
     }
 
     // -------------------------------------------------------------------------
