@@ -175,6 +175,16 @@ public class ChestListener implements Listener {
             level = elevatorItem.getBlockLevel(block);
         }
 
+        // Drop the contents that were stored in the chest
+        if (block.getState() instanceof org.bukkit.block.Chest chest) {
+            for (org.bukkit.inventory.ItemStack item : chest.getInventory().getContents()) {
+                if (item != null && item.getType() != Material.AIR) {
+                    block.getWorld().dropItemNaturally(block.getLocation(), item);
+                }
+            }
+            chest.getInventory().clear();
+        }
+
         // Drop the special item instead of a plain chest
         event.setDropItems(false);
         block.getWorld().dropItemNaturally(block.getLocation(), elevatorItem.create(level));
